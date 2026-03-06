@@ -70,11 +70,11 @@ server.post("/books", async (req: Request, res: Response) => {
 
   const newBookId = parsedBooks.length + 1;
 
-  const newBook = { id: newBookId, title: title };
+  const newBook = { id: newBookId, title };
 
-  parsedBooks.push(newBook);
+  const mergedBook = [...parsedBooks, newBook];
 
-  const data = JSON.stringify(parsedBooks);
+  const data = JSON.stringify(mergedBook);
 
   const writeBook = async () => {
     try {
@@ -84,7 +84,7 @@ server.post("/books", async (req: Request, res: Response) => {
     }
   };
   writeBook();
-  res.status(200).json({ message: "Success", book: parsedBooks });
+  res.status(200).json({ message: "Success", books: mergedBook });
 });
 
 server.delete("/books/:id", async (req: Request, res: Response) => {
@@ -105,9 +105,38 @@ server.delete("/books/:id", async (req: Request, res: Response) => {
 
     const newBooks = parsedBooks.filter((book) => String(book.id) !== id);
 
-    await fs.writeFile("./books.json", JSON.stringify(newBooks, null, 2));
+    await fs.writeFile("./books.json", JSON.stringify(newBooks));
 
     res.status(200).json({ message: "Successfully deleted", books: newBooks });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
+  }
+});
+
+server.put("/books/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title } = req.body;
+    const data = await readBooks();
+
+    if (!data) {
+      return res.status(404).json({ message: "No data found" });
+    }
+
+    const parsedBooks: Book[] = JSON.parse(data);
+    const bookIndex = parsedBooks.findIndex((b) => String(b.id) === id);
+
+    if (bookIndex === -1) {
+      return res.status(404).json({ message: "Book not found" });
+    }
+
+    parsedBooks[bookIndex].title = title;
+
+    await fs.writeFile("./books.json", JSON.stringify(parsedBooks));
+
+    res
+      .status(200)
+      .json({ message: "Successfully updated", book: parsedBooks[bookIndex] });
   } catch (error) {
     res.status(500).json({ message: "Server error", error });
   }
